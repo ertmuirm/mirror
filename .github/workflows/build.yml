@@ -31,27 +31,32 @@ jobs:
 
       - name: Package as IPA
         run: |
-          # Find the built app in DerivedData
-          BUILD_APP=$(find ~/Library/Developer/Xcode/DerivedData -name "iOSMirror.app" -type d 2>/dev/null | head -1)
-          if [ -z "$BUILD_APP" ]; then
-            echo "Error: iOSMirror.app not found in DerivedData"
+          # The archive is at ./build/iOSMirror.xarchive
+          ARCHIVE_PATH="./build/iOSMirror.xarchive"
+          
+          if [ ! -d "$ARCHIVE_PATH" ]; then
+            echo "Error: Archive not found at $ARCHIVE_PATH"
             exit 1
           fi
           
-          echo "Found app at: $BUILD_APP"
-          
+          # Find the app inside the archive
           mkdir -p Payload
-          cp -r "$BUILD_APP" Payload/
+          cp -r "$ARCHIVE_PATH/Products/Applications/iOSMirror.app" Payload/
+          
           # Embed the broadcast extension from iOSMirror.app/PlugIns
           mkdir -p Payload/iOSMirror.app/PlugIns
           cp -r iOSMirror.app/PlugIns/"Cast Screen Mirror.appex" Payload/iOSMirror.app/PlugIns/
+          
           # Copy frameworks from iOSMirror.app/Frameworks
           mkdir -p Payload/iOSMirror.app/Frameworks
           cp -r iOSMirror.app/Frameworks/* Payload/iOSMirror.app/Frameworks/
+          
           # Copy CastFrameworkAssets.bundle
           cp -r iOSMirror.app/CastFrameworkAssets.bundle Payload/iOSMirror.app/
+          
           # Ensure executable
           chmod +x Payload/iOSMirror.app/iOSMirror
+          
           # Package as IPA
           zip -r iOSMirror.ipa Payload
 
