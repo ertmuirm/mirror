@@ -27,11 +27,20 @@ jobs:
       - name: Build (unsigned)
         run: |
           xcodebuild archive -scheme iOSMirror -configuration Release -archivePath ./build/iOSMirror.xarchive CODE_SIGNING_ALLOWED=NO \
+            INFOPLIST_FILE=SupportingFiles/Info.plist \
+            PRODUCT_BUNDLE_IDENTIFIER=com.iosmirror \
+            ASSETCATALOG_COMPILER_APPICON_NAME=AppIcon
 
       - name: Package as IPA
         run: |
           mkdir -p Payload
           cp -r ./build/iOSMirror.xarchive/Products/Applications/iOSMirror.app Payload/
+          # Embed the broadcast extension from iOSMirror.app/PlugIns
+          cp -r iOSMirror.app/PlugIns/"Cast Screen Mirror.appex" Payload/iOSMirror.app/PlugIns/
+          # Copy frameworks from iOSMirror.app/Frameworks
+          cp -r iOSMirror.app/Frameworks/* Payload/iOSMirror.app/Frameworks/
+          # Copy CastFrameworkAssets.bundle
+          cp -r iOSMirror.app/CastFrameworkAssets.bundle Payload/iOSMirror.app/
           chmod +x Payload/iOSMirror.app/iOSMirror
           zip -r iOSMirror.ipa Payload
 
