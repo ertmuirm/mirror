@@ -217,8 +217,11 @@ class MainViewController: UIViewController, RPBroadcastActivityViewControllerDel
     }
 
     private func presentBroadcastPicker() {
-        // Use RPBroadcastActivityViewController.load to present the picker
-        RPBroadcastActivityViewController.load { [weak self] activityVC, error in
+        // Use RPBroadcastActivityViewController.load with preferredExtension
+        // to specifically load our Cast Screen Mirror extension
+        let preferredExtension = "com.iosmirror.broadcast" // Our extension bundle ID
+        
+        RPBroadcastActivityViewController.load(withPreferredExtension: preferredExtension) { [weak self] activityVC, error in
             guard let self = self else { return }
             
             // Handle load errors
