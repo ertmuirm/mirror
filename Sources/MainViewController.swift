@@ -77,8 +77,8 @@ class MainViewController: UIViewController {
     }()
 
     // MARK: - Properties
-    private var discoveredDevices: [NWBrowser.Result] = []
-    private var selectedDevice: NWBrowser.Result?
+    private var discoveredDevices: [(result: NWBrowser.Result, endpoint: NWEndpoint)] = []
+    private var selectedDeviceIndex: Int?
     private var browser: NWBrowser?
 
     // MARK: - Lifecycle
@@ -141,7 +141,7 @@ class MainViewController: UIViewController {
     @objc private func scanForDevices() {
         browser?.cancel()
         discoveredDevices.removeAll()
-        selectedDevice = nil
+        selectedDeviceIndex = nil
         deviceTableView.reloadData()
         updateStartButton()
 
@@ -173,7 +173,9 @@ class MainViewController: UIViewController {
 
         browser.browseResultsChangedHandler = { [weak self] results, changes in
             DispatchQueue.main.async {
-                self?.discoveredDevices = results
+                self?.discoveredDevices = results.map { result in
+                    (result: result, endpoint: result.endpoint)
+                }
                 self?.deviceTableView.reloadData()
 
                 if let count = self?.discoveredDevices.count, count > 0 {
@@ -195,11 +197,26 @@ class MainViewController: UIViewController {
 
     // MARK: - Start Mirror
     @objc private func startMirror() {
-        guard selectedDevice != nil else {
+        guard let index = selectedDeviceIndex, index < discoveredDevices.count else {
             statusLabel.text = "Please select a Chromecast device first."
             return
         }
 
+        let selectedResult = discoveredDevices[index].result
+        var deviceName = "Chromecast"
+
+        if case let .service(name, _, _, _) = selectedResult.endpoint {
+            deviceName = name
+        }
+
+        statusLabel.text = "Launching broadcast picker..."
+
+        // Present the iOS system broadcast picker
+        // The extension (Cast Screen Mirror.appex) handles device scanning internally
+        presentBroadcastPicker()
+    }
+
+    private func presentBroadcastPicker() {
         if RPBroadcastActivityViewController.isBroadcastSupported() {
             RPBroadcastActivityViewController.present { [weak self] broadcastActivityVC, error in
                 if let error = error {
@@ -225,7 +242,7 @@ class MainViewController: UIViewController {
 
     // MARK: - Helpers
     private func updateStartButton() {
-        let hasSelection = selectedDevice != nil
+        let hasSelection = selectedDeviceIndex != nil
         startMirrorButton.isEnabled = hasSelection
         startMirrorButton.alpha = hasSelection ? 1.0 : 0.5
     }
@@ -241,7 +258,7 @@ extension MainViewController: UITableViewDelegate, UITableViewDataSource {
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "DeviceCell", for: indexPath)
 
-        let result = discoveredDevices[indexPath.row]
+        let result = discoveredDevices[indexPath.row].result
         var deviceName = "Unknown Device"
         if case let .service(name, _, _, _) = result.endpoint {
             deviceName = name
@@ -250,7 +267,7 @@ extension MainViewController: UITableViewDelegate, UITableViewDataSource {
         cell.textLabel?.text = deviceName
         cell.textLabel?.textColor = UIColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 1.0)
         cell.backgroundColor = UIColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 1.0)
-        cell.accessoryType = (selectedDevice == result) ? .checkmark : .none
+        cell.accessoryType = (selectedDeviceIndex == indexPath.row) ? .checkmark : .none
         cell.tintColor = UIColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 1.0)
 
         return cell
@@ -259,11 +276,11 @@ extension MainViewController: UITableViewDelegate, UITableViewDataSource {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
 
-        selectedDevice = discoveredDevices[indexPath.row]
+        selectedDeviceIndex = indexPath.row
         tableView.reloadData()
 
-        var deviceName = "Device"
-        if case let .service(name, _, _, _) = selectedDevice?.endpoint {
+        var deviceName = "Chromecast"
+        if case let .service(name, _, _, _) = discoveredDevices[indexPath.row].result.endpoint {
             deviceName = name
         }
         statusLabel.text = "Selected: \(deviceName)\nTap 'Start Mirror' to begin broadcasting."
