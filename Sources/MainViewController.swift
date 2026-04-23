@@ -235,38 +235,80 @@ class MainViewController: UIViewController, RPBroadcastActivityViewControllerDel
     }
 
     private func presentBroadcastPicker() {
-        // Present the iOS system broadcast picker
-        // Use load without preferredExtension to show all available broadcast services
-        // Our Cast Screen Mirror extension should appear in the list
-        RPBroadcastActivityViewController.load { [weak self] activityVC, error in
-            guard let self = self else { return }
+        // Present the broadcast picker directly from our view controller
+        // This approach works when the extension is properly configured
+        guard let rootVC = UIApplication.shared.windows.first?.rootViewController else {
+            statusLabel.text = "Error: No root view controller"
+            return
+        }
+        
+        var presentingVC = rootVC
+        while let presented = presentingVC.presentedViewController {
+            presentingVC = presented
+        }
+        
+        // Use the class method with preferred extension
+        RPBroadcastActivityViewController.load(withPreferredExtension: "com.iosmirror.broadcast") { [weak presentingVC] activityVC, error in
+            guard let vc = presentingVC else { return }
             
-            // Handle load errors
-            if let error = error {
-                self.statusLabel.text = "Error loading picker: \(error.localizedDescription)"
+            if let error = error as NSError? {
+                // Check for the specific "no broadcast service" error
+                if error.domain == "RPBroadcastActivityViewControllerErrorDomain" {
+                    vc.dismiss(animated: true) {
+                        // Fallback: open system broadcast picker
+                        self.presentSystemBroadcastPicker(from: vc)
+                    }
+                } else {
+                    vc.dismiss(animated: true) {
+                        self.statusLabel.text = "Error: \(error.localizedDescription)"
+                    }
+                }
                 return
             }
             
             guard let activityVC = activityVC else {
-                self.statusLabel.text = "No broadcast available.\nMake sure you have the screen recording permission enabled."
+                vc.dismiss(animated: true) {
+                    self.presentSystemBroadcastPicker(from: vc)
+                }
                 return
             }
             
-            // Set delegate
+            activityVC.delegate = self
+            vc.present(activityVC, animated: true)
+        }
+    }
+    
+    private func presentSystemBroadcastPicker(from vc: UIViewController) {
+        // Fallback: present the system broadcast picker without preferred extension
+        // This shows all available broadcast services
+        RPBroadcastActivityViewController.load { activityVC, error in
+            if let error = error {
+                DispatchQueue.main.async {
+                    vc.showAlert(title: "Broadcast Error", message: error.localizedDescription)
+                }
+                return
+            }
+            
+            guard let activityVC = activityVC else {
+                DispatchQueue.main.async {
+                    vc.showAlert(title: "Broadcast Error", message: "No broadcast services available.\nPlease ensure you have screen recording permission enabled in Settings.")
+                }
+                return
+            }
+            
             activityVC.delegate = self
             
-            // Handle iPad popover
             if UIDevice.current.userInterfaceIdiom == .pad {
                 activityVC.modalPresentationStyle = .popover
                 if let pop = activityVC.popoverPresentationController {
                     pop.sourceView = self.startMirrorButton
                     pop.sourceRect = self.startMirrorButton.bounds
-                    pop.permittedArrowDirections = []
                 }
             }
             
-            // Present the picker
-            self.present(activityVC, animated: true)
+            DispatchQueue.main.async {
+                vc.present(activityVC, animated: true)
+            }
         }
     }
 
@@ -275,6 +317,12 @@ class MainViewController: UIViewController, RPBroadcastActivityViewControllerDel
         let hasSelection = selectedDeviceIndex != nil
         startMirrorButton.isEnabled = hasSelection
         startMirrorButton.alpha = hasSelection ? 1.0 : 0.5
+    }
+    
+    private func showAlert(title: String, message: String) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
 
     // MARK: - RPBroadcastActivityViewControllerDelegate
@@ -323,36 +371,46 @@ extension MainViewController: UITableViewDelegate, UITableViewDataSource {
 
         let device = discoveredDevices[indexPath.row]
         var displayText = "Unknown Device"
-        var deviceType = "Speaker"
         
         if case let .service(name, _, _, _) = device.endpoint {
-            // Parse device type from name: "Living Room TV", "Bedroom Speaker", etc.
-            // Or use the full name as-is for short name display
-            let components = name.components(separatedBy: " ")
-            if components.count > 1 {
-                // Last word is usually the device type (TV, Speaker, etc.)
-                let lastWord = components.last ?? "Speaker"
-                // Check if it contains known device types
-                if lastWord.lowercased().contains("tv") {
-                    deviceType = "TV"
-                    // Everything except last word is short name
-                    displayText = "TV: " + components.dropLast().joined(separator: " ")
-                } else if lastWord.lowercased().contains("speaker") || lastWord.lowercased().contains("audio") {
-                    deviceType = "Speaker"
-                    displayText = "Speaker: " + components.dropLast().joined(separator: " ")
-                } else if lastWord.lowercased().contains("display") {
-                    deviceType = "Display"
-                    displayText = "Display: " + components.dropLast().joined(separator: " ")
-                } else {
-                    // Just use the full name as short name
-                    displayText = name
-                }
-            } else {
-                displayText = name
+            // Parse device model and type from name
+            // Examples: "Living Room TV" -> model="Chromecast", type="TV"
+            // "Bedroom Speaker" -> model="Chromecast Audio", type="Speaker"
+            // "Nest Hub" -> model="Nest Hub", type="Speaker"
+            
+            let lowerName = name.lowercased()
+            var deviceModel = "Chromecast"
+            var deviceType = "Speaker"
+            
+            // Detect device type
+            if lowerName.contains("tv") {
+                deviceType = "TV"
+            } else if lowerName.contains("speaker") || lowerName.contains("audio") || lowerName.contains("nest") || lowerName.contains("home") {
+                deviceType = "Speaker"
+            } else if lowerName.contains("display") {
+                deviceType = "Display"
             }
+            
+            // Detect specific model
+            if lowerName.contains("nest hub") {
+                deviceModel = "Nest Hub"
+            } else if lowerName.contains("nest mini") {
+                deviceModel = "Nest Mini"
+            } else if lowerName.contains("chromecast audio") {
+                deviceModel = "Chromecast Audio"
+            } else if lowerName.contains("chromecast ultra") {
+                deviceModel = "Chromecast Ultra"
+            } else if lowerName.contains("chromecast with google tv") || lowerName.contains("chromecast 4") {
+                deviceModel = "Chromecast with Google TV"
+            } else if lowerName.contains("chromecast") {
+                deviceModel = "Chromecast"
+            }
+            
+            // Format: "Type - Model" (e.g., "TV - Chromecast", "Speaker - Nest Hub")
+            displayText = "\(deviceType) - \(deviceModel)"
         }
 
-        // Show device type icon and short name
+        // Show device type and model
         cell.textLabel?.text = displayText
         cell.textLabel?.textColor = UIColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 1.0)
         cell.backgroundColor = UIColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 1.0)
