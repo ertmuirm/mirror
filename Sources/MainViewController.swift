@@ -235,36 +235,25 @@ class MainViewController: UIViewController {
     }
 
     private func presentBroadcastPicker() {
-        // Use RPSystemBroadcastPickerView - a native UIView that shows broadcast button
-        // Present it on top of our view with proper visibility
+        // Create RPSystemBroadcastPickerView - a view that shows live broadcast button
+        // When users tap this button, it shows the system broadcast picker
         
         let pickerView = RPSystemBroadcastPickerView(frame: CGRect(x: 0, y: 0, width: 60, height: 60))
         
-        // Configure - nil means show all available services
+        // Configure - nil shows all available services
         pickerView.preferredExtension = nil
         pickerView.tintColor = .white
         pickerView.showsMicrophoneButton = false
         
-        // Add to our view
+        // Position above the Start Mirror button
         pickerView.center = CGPoint(x: view.bounds.midX, y: startMirrorButton.frame.minY - 80)
         pickerView.autoresizingMask = [.flexibleLeftMargin, .flexibleRightMargin]
         
-        // Add target action
-        pickerView.addTarget(self, action: #selector(broadcastPickerTapped), for: .touchUpInside)
-        
+        // Add to view hierarchy (visible button)
         view.addSubview(pickerView)
         
-        // Update status
-        statusLabel.text = "Tap the broadcast button above to start mirroring"
-        
-        // Programmatically trigger the picker
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            pickerView.tap(nil)
-        }
-    }
-    
-    @objc private func broadcastPickerTapped(_ sender: Any?) {
-        statusLabel.text = "Opening broadcast picker..."
+        // Update status to guide user
+        statusLabel.text = "Tap the live button to start mirroring"
     }
 
     // MARK: - Helpers
