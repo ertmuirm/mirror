@@ -1,7 +1,8 @@
 import UIKit
 import Network
+import ReplayKit
 
-class MainViewController: UIViewController {
+class MainViewController: UIViewController, RPBroadcastActivityViewControllerDelegate {
 
     // MARK: - UI Elements
     private let titleLabel: UILabel = {
@@ -216,13 +217,37 @@ class MainViewController: UIViewController {
     }
 
     private func presentBroadcastPicker() {
-        // Placeholder for broadcast functionality
-        // In a production app, this would use RPBroadcastActivityViewController
-        // to present the iOS broadcast picker for screen recording extensions.
-        // 
-        // The Cast Screen Mirror.appex extension handles the actual 
-        // screen capture and streaming to Chromecast devices.
-        statusLabel.text = "Broadcast picker not implemented.\nUse iOS screen recording instead."
+        // Use RPBroadcastActivityViewController.load to present the picker
+        RPBroadcastActivityViewController.load { [weak self] activityVC, error in
+            guard let self = self else { return }
+            
+            // Handle load errors
+            if let error = error {
+                self.statusLabel.text = "Error loading picker: \(error.localizedDescription)"
+                return
+            }
+            
+            guard let activityVC = activityVC else {
+                self.statusLabel.text = "No broadcast available."
+                return
+            }
+            
+            // Set delegate
+            activityVC.delegate = self
+            
+            // Handle iPad popover
+            if UIDevice.current.userInterfaceIdiom == .pad {
+                activityVC.modalPresentationStyle = .popover
+                if let pop = activityVC.popoverPresentationController {
+                    pop.sourceView = self.startMirrorButton
+                    pop.sourceRect = self.startMirrorButton.bounds
+                    pop.permittedArrowDirections = []
+                }
+            }
+            
+            // Present the picker
+            self.present(activityVC, animated: true)
+        }
     }
 
     // MARK: - Helpers
@@ -230,6 +255,39 @@ class MainViewController: UIViewController {
         let hasSelection = selectedDeviceIndex != nil
         startMirrorButton.isEnabled = hasSelection
         startMirrorButton.alpha = hasSelection ? 1.0 : 0.5
+    }
+
+    // MARK: - RPBroadcastActivityViewControllerDelegate
+    func broadcastActivityViewController(_ broadcastActivityViewController: RPBroadcastActivityViewController,
+                                        didFinishWith broadcastController: RPBroadcastController?,
+                                        error: Error?) {
+        // Dismiss the picker
+        broadcastActivityViewController.dismiss(animated: true) { [weak self] in
+            guard let self = self else { return }
+
+            // Handle errors from picker
+            if let error = error {
+                self.statusLabel.text = "Picker error: \(error.localizedDescription)"
+                return
+            }
+
+            // User cancelled (no controller returned)
+            guard let controller = broadcastController else {
+                self.statusLabel.text = "Broadcast cancelled. Select a device and try again."
+                return
+            }
+
+            // Start the broadcast
+            controller.startBroadcast { startError in
+                DispatchQueue.main.async {
+                    if let startError = startError {
+                        self.statusLabel.text = "Failed to start: \(startError.localizedDescription)"
+                    } else {
+                        self.statusLabel.text = "Broadcast started!\nUsing iOS screen recording."
+                    }
+                }
+            }
+        }
     }
 }
 
