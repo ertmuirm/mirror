@@ -22,39 +22,48 @@ jobs:
 
       - name: Build (unsigned)
         run: |
-          xcodebuild archive -scheme iOSMirror \
+          # Build the app directly - outputs to DerivedData
+          xcodebuild -scheme iOSMirror \
             -configuration Release \
-            -archivePath ./build/iOSMirror.xarchive \
+            -destinationgeneric-platform=name=iPhone\ OS \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGN_IDENTITY="" \
-            PRODUCT_BUNDLE_IDENTIFIER=com.iosmirror
+            PRODUCT_BUNDLE_IDENTIFIER=com.iosmirror \
+            build
 
       - name: Package as IPA
         run: |
-          # The archive is at ./build/iOSMirror.xarchive
-          ARCHIVE_PATH="./build/iOSMirror.xarchive"
+          # Find the built app in DerivedData - the build puts it directly there
+          BUILD_DIR="$HOME/Library/Developer/Xcode/DerivedData/iOSMirror-*/Build/Products/Release-iphoneos"
+          BUILD_APP=$(ls -d $BUILD_DIR/iOSMirror.app 2>/dev/null | head -1)
           
-          if [ ! -d "$ARCHIVE_PATH" ]; then
-            echo "Error: Archive not found at $ARCHIVE_PATH"
+          if [ -z "$BUILD_APP" ] || [ ! -d "$BUILD_APP" ]; then
+            # Try alternate location
+            BUILD_APP=$(find "$HOME/Library/Developer/Xcode/DerivedData" -name "iOSMirror.app" -type d 2>/dev/null | head -1)
+          fi
+          
+          if [ -z "$BUILD_APP" ] || [ ! -d "$BUILD_APP" ]; then
+            echo "Error: iOSMirror.app not found"
+            ls -la "$HOME/Library/Developer/Xcode/DerivedData/"
             exit 1
           fi
           
-          # Find the app inside the archive
-          mkdir -p Payload
-          cp -r "$ARCHIVE_PATH/Products/Applications/iOSMirror.app" Payload/
+          echo "Found app at: $BUILD_APP"
           
-          # Embed the broadcast extension from iOSMirror.app/PlugIns
+          mkdir -p Payload
+          cp -r "$BUILD_APP" Payload/
+          
+          # Embed the broadcast extension
           mkdir -p Payload/iOSMirror.app/PlugIns
           cp -r iOSMirror.app/PlugIns/"Cast Screen Mirror.appex" Payload/iOSMirror.app/PlugIns/
           
-          # Copy frameworks from iOSMirror.app/Frameworks
+          # Copy frameworks
           mkdir -p Payload/iOSMirror.app/Frameworks
           cp -r iOSMirror.app/Frameworks/* Payload/iOSMirror.app/Frameworks/
           
           # Copy CastFrameworkAssets.bundle
           cp -r iOSMirror.app/CastFrameworkAssets.bundle Payload/iOSMirror.app/
           
-          # Ensure executable
           chmod +x Payload/iOSMirror.app/iOSMirror
           
           # Package as IPA
