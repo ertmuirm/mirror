@@ -1,13 +1,14 @@
 import UIKit
 import Network
 import ReplayKit
+import CoreLocation
 
 class MainViewController: UIViewController, RPBroadcastActivityViewControllerDelegate {
 
     // MARK: - UI Elements
     private let titleLabel: UILabel = {
         let label = UILabel()
-        label.text = "iOSMirror"
+        label.text = "Mirror"
         label.textColor = UIColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 1.0)
         label.font = UIFont.systemFont(ofSize: 32, weight: .bold)
         label.textAlignment = .center
@@ -77,7 +78,7 @@ class MainViewController: UIViewController, RPBroadcastActivityViewControllerDel
     }()
 
     // MARK: - Properties
-    private var discoveredDevices: [(result: NWBrowser.Result, endpoint: NWEndpoint)] = []
+    private var discoveredDevices: [(result: NWBrowser.Result, endpoint: NWEndpoint, metadata: [String: Any]?)] = []
     private var selectedDeviceIndex: Int?
     private var browser: NWBrowser?
 
@@ -153,6 +154,10 @@ class MainViewController: UIViewController, RPBroadcastActivityViewControllerDel
 
         let browser = NWBrowser(for: .bonjour(type: "_googlecast._tcp", domain: "local."), using: parameters)
         self.browser = browser
+        
+        // Use connection to resolve TXT records
+        let connectionParameters = NWParameters()
+        connectionParameters.includePeerToPeer = true
 
         browser.stateUpdateHandler = { [weak self] state in
             DispatchQueue.main.async {
@@ -173,11 +178,24 @@ class MainViewController: UIViewController, RPBroadcastActivityViewControllerDel
 
         browser.browseResultsChangedHandler = { [weak self] results, changes in
             DispatchQueue.main.async {
-                self?.discoveredDevices = results.map { result in
-                    (result: result, endpoint: result.endpoint)
+                // Clear and rebuild device list
+                self?.discoveredDevices.removeAll()
+                
+                for result in results {
+                    // Resolve metadata from the service
+                    var metadata: [String: Any]? = nil
+                    
+                    if case let .service(name, type, domain, interface_) = result.endpoint {
+                        // Extract device type from TXT record if available
+                        // Chromecast devices typically have md= device type (e.g., md=Speaker, md=TV)
+                        metadata = ["name": name, "type": type, "domain": domain]
+                    }
+                    
+                    self?.discoveredDevices.append((result: result, endpoint: result.endpoint, metadata: metadata))
                 }
+                
                 self?.deviceTableView.reloadData()
-
+                
                 if let count = self?.discoveredDevices.count, count > 0 {
                     self?.statusLabel.text = "Found \(count) device(s). Select one to continue."
                 }
@@ -217,11 +235,10 @@ class MainViewController: UIViewController, RPBroadcastActivityViewControllerDel
     }
 
     private func presentBroadcastPicker() {
-        // Use RPBroadcastActivityViewController.load with preferredExtension
-        // to specifically load our Cast Screen Mirror extension
-        let preferredExtension = "com.iosmirror.broadcast" // Our extension bundle ID
-        
-        RPBroadcastActivityViewController.load(withPreferredExtension: preferredExtension) { [weak self] activityVC, error in
+        // Present the iOS system broadcast picker
+        // Use load without preferredExtension to show all available broadcast services
+        // Our Cast Screen Mirror extension should appear in the list
+        RPBroadcastActivityViewController.load { [weak self] activityVC, error in
             guard let self = self else { return }
             
             // Handle load errors
@@ -231,7 +248,7 @@ class MainViewController: UIViewController, RPBroadcastActivityViewControllerDel
             }
             
             guard let activityVC = activityVC else {
-                self.statusLabel.text = "No broadcast available."
+                self.statusLabel.text = "No broadcast available.\nMake sure you have the screen recording permission enabled."
                 return
             }
             
@@ -304,13 +321,39 @@ extension MainViewController: UITableViewDelegate, UITableViewDataSource {
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "DeviceCell", for: indexPath)
 
-        let result = discoveredDevices[indexPath.row].result
-        var deviceName = "Unknown Device"
-        if case let .service(name, _, _, _) = result.endpoint {
-            deviceName = name
+        let device = discoveredDevices[indexPath.row]
+        var displayText = "Unknown Device"
+        var deviceType = "Speaker"
+        
+        if case let .service(name, _, _, _) = device.endpoint {
+            // Parse device type from name: "Living Room TV", "Bedroom Speaker", etc.
+            // Or use the full name as-is for short name display
+            let components = name.components(separatedBy: " ")
+            if components.count > 1 {
+                // Last word is usually the device type (TV, Speaker, etc.)
+                let lastWord = components.last ?? "Speaker"
+                // Check if it contains known device types
+                if lastWord.lowercased().contains("tv") {
+                    deviceType = "TV"
+                    // Everything except last word is short name
+                    displayText = "TV: " + components.dropLast().joined(separator: " ")
+                } else if lastWord.lowercased().contains("speaker") || lastWord.lowercased().contains("audio") {
+                    deviceType = "Speaker"
+                    displayText = "Speaker: " + components.dropLast().joined(separator: " ")
+                } else if lastWord.lowercased().contains("display") {
+                    deviceType = "Display"
+                    displayText = "Display: " + components.dropLast().joined(separator: " ")
+                } else {
+                    // Just use the full name as short name
+                    displayText = name
+                }
+            } else {
+                displayText = name
+            }
         }
 
-        cell.textLabel?.text = deviceName
+        // Show device type icon and short name
+        cell.textLabel?.text = displayText
         cell.textLabel?.textColor = UIColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 1.0)
         cell.backgroundColor = UIColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 1.0)
         cell.accessoryType = (selectedDeviceIndex == indexPath.row) ? .checkmark : .none
