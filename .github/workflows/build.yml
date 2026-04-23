@@ -1,0 +1,18 @@
+# iOSMirror Build Workflow
+#
+# This is a placeholder build.yml file. The user will write their own build instructions.
+#
+# Build Instructions (for manual/sidestore signing):
+# 1. Install XcodeGen: brew install xcodegen
+# 2. Generate project: cd project-root && xcodegen generate
+# 3. Open iOSMirror.xcodeproj in Xcode
+# 4. Select target device/simulator
+# 5. Build for sidestore installation (unsigned)
+#
+# Requirements:
+# - iOS 14.0+
+# - XcodeGen installed
+# - For sidestore: AltStore or similar sideloading tool
+#
+# Note: This app includes the broadcast extension from Cast Screen Mirror.appex
+# which streams screen content to Chromecast devices.
