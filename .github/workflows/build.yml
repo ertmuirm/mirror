@@ -11,37 +11,39 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
+      - name: Install XcodeGen
+        run: |
+          if ! command -v xcodegen &> /dev/null; then
+            brew install xcodegen
+          fi
 
-      - name: Install JS dependencies
-        run: npm ci
-
-      - name: Install CocoaPods dependencies
-        working-directory: ios
-        run: pod install
+      - name: Generate Xcode project
+        run: xcodegen generate
 
       - name: Build (unsigned)
         run: |
-          xcodebuild archive -scheme iOSMirror -configuration Release -archivePath ./build/iOSMirror.xarchive CODE_SIGNING_ALLOWED=NO \
-            INFOPLIST_FILE=SupportingFiles/Info.plist \
-            PRODUCT_BUNDLE_IDENTIFIER=com.iosmirror \
-            ASSETCATALOG_COMPILER_APPICON_NAME=AppIcon
+          xcodebuild archive -scheme iOSMirror \
+            -configuration Release \
+            -archivePath ./build/iOSMirror.xarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            PRODUCT_BUNDLE_IDENTIFIER=com.iosmirror
 
       - name: Package as IPA
         run: |
           mkdir -p Payload
           cp -r ./build/iOSMirror.xarchive/Products/Applications/iOSMirror.app Payload/
           # Embed the broadcast extension from iOSMirror.app/PlugIns
+          mkdir -p Payload/iOSMirror.app/PlugIns
           cp -r iOSMirror.app/PlugIns/"Cast Screen Mirror.appex" Payload/iOSMirror.app/PlugIns/
           # Copy frameworks from iOSMirror.app/Frameworks
+          mkdir -p Payload/iOSMirror.app/Frameworks
           cp -r iOSMirror.app/Frameworks/* Payload/iOSMirror.app/Frameworks/
           # Copy CastFrameworkAssets.bundle
           cp -r iOSMirror.app/CastFrameworkAssets.bundle Payload/iOSMirror.app/
+          # Ensure executable
           chmod +x Payload/iOSMirror.app/iOSMirror
+          # Package as IPA
           zip -r iOSMirror.ipa Payload
 
       - name: Upload unsigned IPA
