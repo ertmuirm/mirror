@@ -21,21 +21,18 @@ targets:
     platform: iOS
     sources:
       - path: Sources
-        type: group
       - path: Resources
-        type: group
       - path: SupportingFiles
-        type: group
       - path: Assets.xcassets
-        type: group
+        type: folder
       - path: iOSMirror.app/PlugIns
-        type: group
+        type: folder
         buildPhase: none
       - path: iOSMirror.app/Frameworks
-        type: group
+        type: folder
         buildPhase: none
       - path: iOSMirror.app/CastFrameworkAssets.bundle
-        type: group
+        type: folder
         buildPhase: none
     settings:
       base:
