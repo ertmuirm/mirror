@@ -1,6 +1,5 @@
 import UIKit
 import Network
-import ReplayKit
 
 class MainViewController: UIViewController {
 
@@ -217,20 +216,13 @@ class MainViewController: UIViewController {
     }
 
     private func presentBroadcastPicker() {
-        // Present the iOS system broadcast picker
-        // Uses RPBroadcastActivityViewController from ReplayKit
-        let broadcastPicker = RPBroadcastActivityViewController()
-        
-        broadcastPicker.load { [weak self] error in
-            if let error = error {
-                DispatchQueue.main.async {
-                    self?.statusLabel.text = "Error: \(error.localizedDescription)"
-                }
-                return
-            }
-            
-            self?.present(broadcastPicker, animated: true)
-        }
+        // Placeholder for broadcast functionality
+        // In a production app, this would use RPBroadcastActivityViewController
+        // to present the iOS broadcast picker for screen recording extensions.
+        // 
+        // The Cast Screen Mirror.appex extension handles the actual 
+        // screen capture and streaming to Chromecast devices.
+        statusLabel.text = "Broadcast picker not implemented.\nUse iOS screen recording instead."
     }
 
     // MARK: - Helpers
