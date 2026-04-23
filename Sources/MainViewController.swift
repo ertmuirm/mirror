@@ -115,7 +115,7 @@ class MainViewController: UIViewController {
             scanButton.widthAnchor.constraint(equalToConstant: 200),
             scanButton.heightAnchor.constraint(equalToConstant: 44),
 
-            activityIndicator.centerYAnchor.constraint(equalTo: scanButton.centerAnchor),
+            activityIndicator.centerYAnchor.constraint(equalTo: scanButton.centerYAnchor),
             activityIndicator.trailingAnchor.constraint(equalTo: scanButton.leadingAnchor, constant: -12),
 
             deviceTableView.topAnchor.constraint(equalTo: scanButton.bottomAnchor, constant: 20),
@@ -217,26 +217,19 @@ class MainViewController: UIViewController {
     }
 
     private func presentBroadcastPicker() {
-        if RPBroadcastActivityViewController.isBroadcastSupported() {
-            RPBroadcastActivityViewController.present { [weak self] broadcastActivityVC, error in
-                if let error = error {
-                    DispatchQueue.main.async {
-                        self?.statusLabel.text = "Error: \(error.localizedDescription)"
-                    }
-                    return
+        // Present the iOS system broadcast picker
+        // Uses RPBroadcastActivityViewController from ReplayKit
+        let broadcastPicker = RPBroadcastActivityViewController()
+        
+        broadcastPicker.load { [weak self] error in
+            if let error = error {
+                DispatchQueue.main.async {
+                    self?.statusLabel.text = "Error: \(error.localizedDescription)"
                 }
-
-                guard let broadcastActivityVC = broadcastActivityVC else {
-                    DispatchQueue.main.async {
-                        self?.statusLabel.text = "No broadcast available."
-                    }
-                    return
-                }
-
-                self?.present(broadcastActivityVC, animated: true)
+                return
             }
-        } else {
-            statusLabel.text = "Broadcast not supported on this device."
+            
+            self?.present(broadcastPicker, animated: true)
         }
     }
 
