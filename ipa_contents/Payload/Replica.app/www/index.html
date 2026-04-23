@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="description" content="Screen Mirror">
+    <meta name="viewport" content="width=device-width, user-scalable=yes, initial-scale=1, maximum-scale=1">
+    <meta itemprop="description" content="Replica iOS App - Screen Mirror">
+    <meta itemprop="name" content="Replica">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta http-equiv="cache-control" content="no-cache, pre-check=0, post-check=0, must-revalidate" />
+    <meta http-equiv="cache-control" content="max-age=0" />
+    <meta http-equiv="pragma" content="no-cache" />
+    <meta http-equiv="expires" content="0" />
+    <meta http-equiv="expires" content="Thu, 01 Jan 1970 01:00:00 GMT" />
+    <base target="_blank">
+    <title>Replica</title>
+    <link rel="stylesheet" href="css/main.css"/>
+</head>
+
+<body style="background-color:#333;">
+    <p id="agentElement" style="color:#ffffff;"></p>
+    <p id="status" style="color:#ffffff;">Sorry this browser is not yet supported! Please try with the latest version of Apple Safari™, Google Chrome™ or Microsoft Edge™.</p>
+    <p id="errorElement" style="color:#ffffff;"></p>
+    <video id="video" autoplay="true" playsinline muted autoplay controls></video>
+    <img id="image" src="" draggable="false"></img>
+    <script src="js/adapter.js" async></script>
+    <script src="js/main.js" async></script>
+</body>
+</html>
