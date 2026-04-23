@@ -3,7 +3,7 @@ import Network
 import ReplayKit
 import CoreLocation
 
-class MainViewController: UIViewController {
+class MainViewController: UIViewController, RPBroadcastActivityViewControllerDelegate {
 
     // MARK: - UI Elements
     private let titleLabel: UILabel = {
@@ -235,41 +235,31 @@ class MainViewController: UIViewController {
     }
 
     private func presentBroadcastPicker() {
-        // Use RPBroadcastActivityController.showBroadcastPicker to show the system broadcast picker
-        // This is the correct API to present the broadcast picker from the main app
-        // Setting preferredExtensionIdentifier to nil shows all available extensions
+        // Use RPBroadcastActivityViewController to present the system broadcast picker
+        // First try with nil to show all available broadcast services
         
         statusLabel.text = "Opening broadcast picker..."
         
-        RPBroadcastActivityController.showBroadcastPicker(
-            from: self,
-            preferredExtensionIdentifier: "com.iosmirror.broadcast"
-        ) { [weak self] error in
+        // Try loading without any preferred extension first
+        RPBroadcastActivityViewController.load { [weak self] activityVC, error in
+            guard let self = self else { return }
+            
             DispatchQueue.main.async {
                 if let error = error {
-                    // If specific extension fails, try with nil (shows all)
-                    self?.presentSystemBroadcastPicker()
-                } else {
-                    self?.statusLabel.text = "Broadcast picker opened."
+                    self.statusLabel.text = "No broadcast services available.\nMake sure screen recording is enabled in Settings > Control Center > Screen Recording"
+                    return
                 }
-            }
-        }
-    }
-    
-    private func presentSystemBroadcastPicker() {
-        // Fallback: try with nil to show all available broadcast services
-        statusLabel.text = "Opening broadcast picker..."
-        
-        RPBroadcastActivityController.showBroadcastPicker(
-            from: self,
-            preferredExtensionIdentifier: nil
-        ) { [weak self] error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    self?.statusLabel.text = "Error: \(error.localizedDescription)"
-                } else {
-                    self?.statusLabel.text = "Broadcast picker opened."
+                
+                guard let activityVC = activityVC else {
+                    self.statusLabel.text = "No broadcast available."
+                    return
                 }
+                
+                // Set delegate to handle picker results
+                activityVC.delegate = self
+                
+                // Present the activity view controller
+                self.present(activityVC, animated: true)
             }
         }
     }
@@ -279,6 +269,23 @@ class MainViewController: UIViewController {
         let hasSelection = selectedDeviceIndex != nil
         startMirrorButton.isEnabled = hasSelection
         startMirrorButton.alpha = hasSelection ? 1.0 : 0.5
+    }
+}
+
+// MARK: - RPBroadcastActivityViewControllerDelegate
+extension MainViewController: RPBroadcastActivityViewControllerDelegate {
+    func broadcastActivityViewController(_ broadcastActivityViewController: RPBroadcastActivityViewController,
+                                        didFinishWith broadcastController: RPBroadcastController?,
+                                        error: Error?) {
+        broadcastActivityViewController.dismiss(animated: true) { [weak self] in
+            if let error = error {
+                self?.statusLabel.text = "Picker error: \(error.localizedDescription)"
+            } else if broadcastController != nil {
+                self?.statusLabel.text = "Broadcast started!"
+            } else {
+                self?.statusLabel.text = "Broadcast cancelled."
+            }
+        }
     }
 }
 
