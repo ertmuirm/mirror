@@ -3,7 +3,7 @@ import Network
 import ReplayKit
 import CoreLocation
 
-class MainViewController: UIViewController, RPBroadcastActivityViewControllerDelegate {
+class MainViewController: UIViewController {
 
     // MARK: - UI Elements
     private let titleLabel: UILabel = {
@@ -326,7 +326,7 @@ extension MainViewController: UITableViewDelegate, UITableViewDataSource {
                 deviceModel = "Chromecast"
             } else if lowerName.contains("home max") {
                 deviceModel = "Google Home Max"
-            } else if lowerName.contains("home mini") || lowerName.contains("home")) {
+            } else if lowerName.contains("home mini") || lowerName.contains("home") {
                 deviceModel = "Google Home Mini"
             }
             
