@@ -281,17 +281,19 @@ class MainViewController: UIViewController, RPBroadcastActivityViewControllerDel
     private func presentSystemBroadcastPicker(from vc: UIViewController) {
         // Fallback: present the system broadcast picker without preferred extension
         // This shows all available broadcast services
-        RPBroadcastActivityViewController.load { activityVC, error in
+        RPBroadcastActivityViewController.load { [weak self] activityVC, error in
+            guard let self = self else { return }
+            
             if let error = error {
                 DispatchQueue.main.async {
-                    vc.showAlert(title: "Broadcast Error", message: error.localizedDescription)
+                    self.statusLabel.text = "Error: \(error.localizedDescription)"
                 }
                 return
             }
             
             guard let activityVC = activityVC else {
                 DispatchQueue.main.async {
-                    vc.showAlert(title: "Broadcast Error", message: "No broadcast services available.\nPlease ensure you have screen recording permission enabled in Settings.")
+                    self.statusLabel.text = "No broadcast services available.\nPlease ensure screen recording is enabled in Settings."
                 }
                 return
             }
