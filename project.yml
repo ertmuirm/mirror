@@ -52,9 +52,6 @@ targets:
         ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: YES
         OTHER_LDFLAGS:
           - "-ObjC"
-    dependencies:
-      - embed: iOSMirror.app/PlugIns/Cast Screen Mirror.appex
-        codeSign: false
 
 schemes:
   iOSMirror:
