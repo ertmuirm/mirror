@@ -235,33 +235,36 @@ class MainViewController: UIViewController {
     }
 
     private func presentBroadcastPicker() {
-        // Use RPBroadcastActivityViewController to present the system broadcast picker
-        // First try with nil to show all available broadcast services
+        // Use RPSystemBroadcastPickerView - a native UIView that shows broadcast button
+        // Present it on top of our view with proper visibility
         
-        statusLabel.text = "Opening broadcast picker..."
+        let pickerView = RPSystemBroadcastPickerView(frame: CGRect(x: 0, y: 0, width: 60, height: 60))
         
-        // Try loading without any preferred extension first
-        RPBroadcastActivityViewController.load { [weak self] activityVC, error in
-            guard let self = self else { return }
-            
-            DispatchQueue.main.async {
-                if let error = error {
-                    self.statusLabel.text = "No broadcast services available.\nMake sure screen recording is enabled in Settings > Control Center > Screen Recording"
-                    return
-                }
-                
-                guard let activityVC = activityVC else {
-                    self.statusLabel.text = "No broadcast available."
-                    return
-                }
-                
-                // Set delegate to handle picker results
-                activityVC.delegate = self
-                
-                // Present the activity view controller
-                self.present(activityVC, animated: true)
-            }
+        // Configure - nil means show all available services
+        pickerView.preferredExtension = nil
+        pickerView.tintColor = .white
+        pickerView.showsMicrophoneButton = false
+        
+        // Add to our view
+        pickerView.center = CGPoint(x: view.bounds.midX, y: startMirrorButton.frame.minY - 80)
+        pickerView.autoresizingMask = [.flexibleLeftMargin, .flexibleRightMargin]
+        
+        // Add target action
+        pickerView.addTarget(self, action: #selector(broadcastPickerTapped), for: .touchUpInside)
+        
+        view.addSubview(pickerView)
+        
+        // Update status
+        statusLabel.text = "Tap the broadcast button above to start mirroring"
+        
+        // Programmatically trigger the picker
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            pickerView.tap(nil)
         }
+    }
+    
+    @objc private func broadcastPickerTapped(_ sender: Any?) {
+        statusLabel.text = "Opening broadcast picker..."
     }
 
     // MARK: - Helpers
