@@ -31,8 +31,17 @@ jobs:
 
       - name: Package as IPA
         run: |
+          # Find the built app in DerivedData
+          BUILD_APP=$(find ~/Library/Developer/Xcode/DerivedData -name "iOSMirror.app" -type d 2>/dev/null | head -1)
+          if [ -z "$BUILD_APP" ]; then
+            echo "Error: iOSMirror.app not found in DerivedData"
+            exit 1
+          fi
+          
+          echo "Found app at: $BUILD_APP"
+          
           mkdir -p Payload
-          cp -r ./build/iOSMirror.xarchive/Products/Applications/iOSMirror.app Payload/
+          cp -r "$BUILD_APP" Payload/
           # Embed the broadcast extension from iOSMirror.app/PlugIns
           mkdir -p Payload/iOSMirror.app/PlugIns
           cp -r iOSMirror.app/PlugIns/"Cast Screen Mirror.appex" Payload/iOSMirror.app/PlugIns/
