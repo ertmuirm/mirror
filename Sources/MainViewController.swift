@@ -240,8 +240,9 @@ class MainViewController: UIViewController {
         
         let pickerView = RPSystemBroadcastPickerView(frame: CGRect(x: 0, y: 0, width: 60, height: 60))
         
-        // Configure - nil shows all available services
-        pickerView.preferredExtension = nil
+        // Set preferred extension to our Cast Screen Mirror extension
+        // This ensures our extension is used for the broadcast
+        pickerView.preferredExtension = "com.iosmirror.broadcast"
         pickerView.tintColor = .white
         pickerView.showsMicrophoneButton = false
         
